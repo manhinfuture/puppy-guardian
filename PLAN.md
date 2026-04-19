@@ -80,7 +80,17 @@ Small project, flat structure. If the app grows, we'll split further — but not
 
 ## Build phases
 
-**Phase 1 — Local logger (run on Mac only)**
+**Status as of 2026-04-19:** Phases 1 and 2 are complete. Next session should start on Phase 3.
+
+- Repo is live on GitHub (public): `manhinfuture/puppy-guardian` — no secrets in code, service-account key and `secrets.toml` are gitignored.
+- App is deployed on Streamlit Community Cloud and auto-deploys from `main` on push.
+- Google service-account key is stored in Streamlit Cloud secrets as `gcp_service_account_json`.
+- Wife has tested logging from her phone — works.
+- Timezone fix shipped (`TIMEZONE = "America/Los_Angeles"` in `config.py`, used in `app.py` date/time defaults).
+- Historical data was rewritten once via a one-time `replace_history.py` script on 2026-04-19 (backup saved locally to `sheet_backup_20260419_011113.csv`). The script is spent — the Sheet is now the source of truth.
+- Auth deliberately deferred to Phase 5 (see below).
+
+**Phase 1 — Local logger (run on Mac only)** ✅ done
 - Python + Streamlit installed
 - `app.py` with a form: event type dropdown (poop / pee / meal), optional notes, submit button
 - Date and time default to "now" but are editable (in case you log after the fact)
@@ -88,18 +98,28 @@ Small project, flat structure. If the app grows, we'll split further — but not
 - "Recent events" table shows the last 20 rows (date, time, event type, notes) from the Sheet
 - Verification: fill out the form, hit submit, confirm the row appears in the Google Sheet, confirm the recent-events table updates
 
-**Phase 2 — Cloud deploy + wife access**
+**Phase 2 — Cloud deploy + wife access** ✅ done
 - Push project to a GitHub repo (public; no secrets in code, all gitignored)
 - Connect to Streamlit Community Cloud, deploy to `puppy-guardian.streamlit.app`
 - Share the URL with wife, confirm she can log events from her phone
 - Verification: wife logs an event from her phone while user's Mac is off; event appears in Sheet and in the app
 - **Auth deliberately deferred to Phase 5** — URL is obscure, data is non-sensitive, worst case is a fake "poop" row that's deleted from the Sheet. Rule of Three: add auth only when it's actually needed.
 
-**Phase 3 — Basic charts + CSV export**
-- Chart 1: events per day (bar chart, last 14 days)
-- Chart 2: time-of-day distribution for poop events (helps spot routine changes)
-- "Download CSV" button that exports the Sheet as CSV
-- Verification: charts render and update after new events; CSV downloads and opens correctly in Numbers/Excel
+**Phase 3 — Status strip, targeted charts, CSV export**
+
+Revised after Phase 3 planning discussion. Goal: every view answers a real question; no decorative charts.
+
+1. **Status strip** (top of page, above the log form) — one line per event type showing *time since last* and *today's count*. Answers "did she already eat / pee / poop?" at a glance. Not a chart, just computed text.
+2. **Potty training accuracy %** — `location_correct = yes` rate for pee+poop, this week vs. last week. Small number / tiny bar.
+3. **Poop charts (two, side by side):**
+   - Time-of-day distribution (x: hour, y: count across window) — spots schedule drift
+   - Daily count, last 14 days (x: date, y: count that day) — spots trend changes
+4. **Pee chart:** daily count only, last 14 days. Time-of-day for pee is not informative (puppies pee whenever awake), so skipped.
+5. **"Download CSV" button** — exports the Sheet as CSV on demand.
+
+Explicitly dropped from earlier plan: generic "events per day" bar chart (redundant with the per-type daily counts and the status strip).
+
+- Verification: log 10+ events across 3 days → status strip updates, all 3 charts render, accuracy % computes, CSV downloads and opens in Numbers/Excel.
 
 **Phase 4 — Polish and use it**
 - Edit/delete button for individual events (in case of mis-log)
