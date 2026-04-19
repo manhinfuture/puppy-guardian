@@ -1,10 +1,11 @@
 import uuid
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pandas as pd
 import streamlit as st
 
-from config import EVENT_TYPES
+from config import EVENT_TYPES, TIMEZONE
 from sheets import append_event, read_all_events
 
 st.set_page_config(page_title="Puppy Guardian", page_icon="🐶")
@@ -15,11 +16,12 @@ st.header("Log an event")
 with st.form("log_event", clear_on_submit=True):
     event_type = st.selectbox("Event type", EVENT_TYPES)
 
+    now_local = datetime.now(ZoneInfo(TIMEZONE))
     col1, col2 = st.columns(2)
     with col1:
-        event_date = st.date_input("Date", value=datetime.now().date())
+        event_date = st.date_input("Date", value=now_local.date())
     with col2:
-        event_time = st.time_input("Time", value=datetime.now().time())
+        event_time = st.time_input("Time", value=now_local.time())
 
     amount_grams = st.number_input(
         "Amount in grams (for meals only — leave 0 otherwise)",

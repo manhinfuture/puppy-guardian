@@ -89,11 +89,11 @@ Small project, flat structure. If the app grows, we'll split further — but not
 - Verification: fill out the form, hit submit, confirm the row appears in the Google Sheet, confirm the recent-events table updates
 
 **Phase 2 — Cloud deploy + wife access**
-- Push project to a private GitHub repo
-- Connect to Streamlit Community Cloud, deploy
-- Configure Google OAuth login restricted to user's + wife's emails
+- Push project to a GitHub repo (public; no secrets in code, all gitignored)
+- Connect to Streamlit Community Cloud, deploy to `puppy-guardian.streamlit.app`
 - Share the URL with wife, confirm she can log events from her phone
 - Verification: wife logs an event from her phone while user's Mac is off; event appears in Sheet and in the app
+- **Auth deliberately deferred to Phase 5** — URL is obscure, data is non-sensitive, worst case is a fake "poop" row that's deleted from the Sheet. Rule of Three: add auth only when it's actually needed.
 
 **Phase 3 — Basic charts + CSV export**
 - Chart 1: events per day (bar chart, last 14 days)
@@ -105,6 +105,12 @@ Small project, flat structure. If the app grows, we'll split further — but not
 - Edit/delete button for individual events (in case of mis-log)
 - Filter by date range and category
 - **Use it daily for at least 2 weeks before adding anything else.** Let real usage tell us what to build next.
+
+**Phase 5 — Revisit auth (decide after Phase 4)**
+- After 2+ weeks of real daily use, decide whether to add Google OAuth login restricted to an email allow-list.
+- Decide based on actual evidence: has the URL leaked? Has the Sheet been spammed? Does sharing with family require finer permissions?
+- If no → stay unauthenticated, done.
+- If yes → wire up `st.login()` with Google, allow-list emails in `config.py` or secrets.
 
 ## What "done" looks like
 
@@ -120,10 +126,10 @@ Small project, flat structure. If the app grows, we'll split further — but not
 - **Phase 2:** Wife opens URL on phone from outside the home WiFi → can log an event → it appears in the Sheet
 - **Phase 3:** Log 10 events across 3 days → charts render correctly → CSV downloads and opens
 - **Phase 4:** Daily usage for 14 days with both users → collect feedback
+- **Phase 5:** Review whether auth is needed; if yes, wife can still log in with one tap on her phone after setup
 
-## Open questions (to resolve in Phase 1)
+## Open questions
 
-- Exact Google account emails for OAuth allow-list
 - Whether to use a single Sheet with one tab, or anticipate multiple tabs (one per puppy) if a second dog arrives
   - **Default assumption:** single tab for now. If a second puppy joins, we add a `puppy_name` column rather than a second tab.
 
