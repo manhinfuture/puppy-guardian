@@ -47,16 +47,16 @@ One Google Sheet with one tab: `Events`. Columns:
 |---|---|---|---|
 | `event_id` | string (UUID) | No — internal | `a3f1…` |
 | `timestamp` | ISO8601 | Yes — displayed as separate date + time | `2026-04-18T14:30:00` |
-| `event_type` | enum | Yes | `pee` / `poop` / `meal` / `medicine` |
-| `amount_grams` | number (optional) | Yes — meal only | `16` |
+| `event_type` | enum | Yes | `pee` / `poop` / `meal` / `medicine` / `weight` |
+| `amount_grams` | number (optional) | Yes — meal and weight | `16` (meal grams) · `5216` (weight in grams → displayed as lbs in app) |
 | `location_correct` | `yes` / `no` / blank | Yes — pee/poop only | `yes` |
 | `notes` | string (optional) | Yes | `soft stool, slightly green` |
 
 **Design notes:**
 - `event_id` is a UUID generated at write time. Not shown anywhere in the UI. Exists so the app can target a specific row for edit/delete even after rows shift.
 - `timestamp` is one column in the Sheet but split into date and time columns for display.
-- `event_type` has four values (`pee`, `poop`, `meal`, `medicine`). `medicine` covers any dosing (albon, future meds). Weight, vomit, and other rare events live in `notes` until they prove themselves by the Rule of Three.
-- `amount_grams` is only filled for `meal` events. Blank for everything else.
+- `event_type` has five values (`pee`, `poop`, `meal`, `medicine`, `weight`). `medicine` covers any dosing (albon, future meds). `weight` records body weight as a timestamped measurement. Vomit and other rare events live in `notes` until they prove themselves by the Rule of Three.
+- `amount_grams` is filled for `meal` (food grams) and `weight` (body weight in grams). Blank for everything else. The app accepts lbs for weight input and converts to grams on save. **If editing the Sheet directly for weight rows, always enter grams (multiply lbs × 453.6).**
 - `location_correct` tracks potty training accuracy for `pee`/`poop` only. `yes` = on pee pad, `no` = elsewhere, blank = not noted. Added because 3 weeks of historical data showed this is tracked on every single poop.
 - No `size`, `consistency`, `dose_ml`, or old-vs-new-food columns. Those go in `notes`. Promote to columns only if they persist and prove needed.
 
@@ -80,7 +80,7 @@ Small project, flat structure. If the app grows, we'll split further — but not
 
 ## Build phases
 
-**Status as of 2026-04-19:** Phases 1 and 2 are complete. Next session should start on Phase 3.
+**Status as of 2026-04-19:** Phases 1, 2, and 3 are complete. Next session should start on Phase 4.
 
 - Repo is live on GitHub (public): `manhinfuture/puppy-guardian` — no secrets in code, service-account key and `secrets.toml` are gitignored.
 - App is deployed on Streamlit Community Cloud and auto-deploys from `main` on push.
@@ -105,7 +105,7 @@ Small project, flat structure. If the app grows, we'll split further — but not
 - Verification: wife logs an event from her phone while user's Mac is off; event appears in Sheet and in the app
 - **Auth deliberately deferred to Phase 5** — URL is obscure, data is non-sensitive, worst case is a fake "poop" row that's deleted from the Sheet. Rule of Three: add auth only when it's actually needed.
 
-**Phase 3 — Status strip, targeted charts, CSV export**
+**Phase 3 — Status strip, targeted charts, CSV export** ✅ done
 
 Revised after Phase 3 planning discussion. Goal: every view answers a real question; no decorative charts.
 
@@ -118,6 +118,12 @@ Revised after Phase 3 planning discussion. Goal: every view answers a real quest
 5. **"Download CSV" button** — exports the Sheet as CSV on demand.
 
 Explicitly dropped from earlier plan: generic "events per day" bar chart (redundant with the per-type daily counts and the status strip).
+
+**Added mid-phase (2026-04-19):**
+- **Potty accuracy weekly trend line** (last 8 calendar weeks) under the 7-day accuracy metric, to visualize training progression.
+- **Weight tracking** — `weight` event_type, form accepts lbs, stored as grams in `amount_grams`. New Weight section shows current weight + full-history line chart. Originally a BACKLOG item ("weight tracking if a smart scale is added") — manual version promoted because the user had real data to log.
+- **Recent events table** formats `amount_grams` as "11.50 lbs" (weight) or "16 g" (meal) for readability; Sheet storage unchanged.
+- **CSV export** uses UTF-8 BOM (`utf-8-sig`) so Chinese characters render correctly in Numbers/Excel.
 
 - Verification: log 10+ events across 3 days → status strip updates, all 3 charts render, accuracy % computes, CSV downloads and opens in Numbers/Excel.
 

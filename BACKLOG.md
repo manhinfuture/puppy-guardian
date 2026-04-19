@@ -24,7 +24,8 @@ This file captures ideas and features that are **not** part of the current MVP b
 - **Keyframe images attached to events** — once the camera exists, AI-detected events should include a snapshot. Storage likely Google Drive folder, referenced by URL in the Sheet.
 - **LLM scoring / categorization** — e.g. "was this stool normal?" via a vision LLM. Model-agnostic wrapper (OpenAI / Anthropic / Gemini / local Ollama) so we can swap.
 - **Bristol stool scale scoring** — reality check needed: keyframes capture the dog, not the stool itself. May require a second ground-level camera or be dropped entirely. Don't build without validating feasibility.
-- **Richer charts / health trends** — stool consistency trend, meal-to-poop time distribution, weight tracking if a smart scale is added.
+- **Richer charts / health trends** — stool consistency trend, meal-to-poop time distribution. (Weight tracking shipped manually in Phase 3 — smart-scale automation is still backlogged as a future enhancement.)
+- **Smart-scale weight automation** — push weight readings from a WiFi-connected pet scale directly into the Sheet, removing manual entry. Only worth it if manual logging becomes a chore.
 - **SQLite or Postgres storage** — only if Google Sheets hits a performance or query limit, which is many thousands of events away.
 
 ## Longer-term / speculative

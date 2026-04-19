@@ -295,9 +295,21 @@ else:
     display = df.copy()
     display["date"] = display["timestamp"].dt.strftime("%Y-%m-%d")
     display["time"] = display["timestamp"].dt.strftime("%H:%M")
+
+    def _format_amount(row):
+        raw = pd.to_numeric(row["amount_grams"], errors="coerce")
+        if pd.isna(raw) or raw == 0:
+            return ""
+        if row["event_type"] == "weight":
+            return f"{raw / LBS_TO_GRAMS:.2f} lbs"
+        if row["event_type"] == "meal":
+            return f"{raw:g} g"
+        return str(raw)
+
+    display["amount"] = display.apply(_format_amount, axis=1)
     recent = display.sort_values("timestamp", ascending=False).head(20)
     st.dataframe(
-        recent[["date", "time", "event_type", "amount_grams", "location_correct", "notes"]],
+        recent[["date", "time", "event_type", "amount", "location_correct", "notes"]],
         hide_index=True,
         use_container_width=True,
     )
@@ -310,7 +322,7 @@ if df.empty:
 else:
     export_df = df.sort_values("timestamp").copy()
     export_df["timestamp"] = export_df["timestamp"].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
-    csv_bytes = export_df.to_csv(index=False).encode("utf-8")
+    csv_bytes = export_df.to_csv(index=False).encode("utf-8-sig")
     st.download_button(
         "Download CSV",
         data=csv_bytes,
