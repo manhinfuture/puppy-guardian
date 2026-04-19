@@ -60,6 +60,34 @@ def _humanize(delta: timedelta) -> str:
     return f"{days}d ago"
 
 
+def _format_duration(delta: timedelta) -> str:
+    total_min = int(delta.total_seconds() // 60)
+    if total_min < 60:
+        return f"{total_min}m"
+    hours, minutes = divmod(total_min, 60)
+    return f"{hours}h {minutes}m" if minutes else f"{hours}h"
+
+
+def _avg_daytime_interval(sub: pd.DataFrame, window_start: pd.Timestamp) -> Optional[timedelta]:
+    # Excludes overnight gaps: only pairs consecutive same-type events that fall
+    # within 06:00-23:59 on the same calendar day.
+    if sub.empty:
+        return None
+    recent = sub[sub["timestamp"] >= window_start].copy()
+    hour = recent["timestamp"].dt.hour
+    recent = recent[hour >= 6]
+    if len(recent) < 2:
+        return None
+    recent = recent.sort_values("timestamp")
+    recent["date"] = recent["timestamp"].dt.date
+    gaps = recent["timestamp"].diff()
+    same_day = recent["date"] == recent["date"].shift()
+    gaps = gaps[same_day]
+    if gaps.empty:
+        return None
+    return gaps.mean().to_pytimedelta()
+
+
 df = _load_events()
 now_local = datetime.now(TZ)
 today = now_local.date()
@@ -67,6 +95,7 @@ today = now_local.date()
 # --- Status strip ---
 st.subheader("Right now")
 STATUS_TYPES = ["pee", "poop", "meal"]
+avg_window_start = pd.Timestamp(today - timedelta(days=13), tz=TZ)
 cols = st.columns(len(STATUS_TYPES))
 for col, et in zip(cols, STATUS_TYPES):
     with col:
@@ -74,11 +103,14 @@ for col, et in zip(cols, STATUS_TYPES):
         sub = df[df["event_type"] == et] if not df.empty else df
         if sub.empty:
             st.metric(label, "—", "0 today", delta_color="off")
+            st.caption("avg: —")
         else:
             last_ts = sub["timestamp"].max()
             since = _humanize(now_local - last_ts.to_pydatetime())
             today_count = int((sub["timestamp"].dt.date == today).sum())
             st.metric(label, since, f"{today_count} today", delta_color="off")
+            avg = _avg_daytime_interval(sub, avg_window_start)
+            st.caption(f"avg: {_format_duration(avg)} · 14d" if avg else "avg: — · 14d")
 
 # --- Log form ---
 st.header("Log an event")
