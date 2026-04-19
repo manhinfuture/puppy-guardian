@@ -1,5 +1,7 @@
+import base64
 import uuid
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from pathlib import Path
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -7,15 +9,45 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from config import EVENT_TYPES, TIMEZONE
+from config import EVENT_TYPES, PUPPY, TIMEZONE
 from sheets import append_event, read_all_events
 
 TZ = ZoneInfo(TIMEZONE)
 ICONS = {"pee": "💦", "poop": "💩", "meal": "🍽", "medicine": "💊"}
+LBS_TO_GRAMS = 453.592
 
 st.set_page_config(page_title="Puppy Guardian", page_icon="🐶")
 st.title("🐶 Puppy Guardian")
-st.caption("Tracking Ichi")
+
+
+def _compute_age(dob: date, today: date) -> str:
+    years = today.year - dob.year
+    months = today.month - dob.month
+    if today.day < dob.day:
+        months -= 1
+    if months < 0:
+        years -= 1
+        months += 12
+    if years == 0:
+        return f"{months} month{'s' if months != 1 else ''}"
+    if months == 0:
+        return f"{years} year{'s' if years != 1 else ''}"
+    return f"{years}y {months}m"
+
+
+def _profile_image_html(path: Path, size_px: int = 140) -> str:
+    circle = (
+        f"width:{size_px}px;height:{size_px}px;border-radius:50%;"
+        "object-fit:cover;border:2px solid #eee;"
+    )
+    if path.exists():
+        mime = "image/jpeg" if path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
+        b64 = base64.b64encode(path.read_bytes()).decode()
+        return f'<img src="data:{mime};base64,{b64}" style="{circle}" />'
+    return (
+        f'<div style="{circle}background:#f5f5f5;display:flex;'
+        f'align-items:center;justify-content:center;font-size:{size_px // 2}px;">🐶</div>'
+    )
 
 
 def _load_events() -> pd.DataFrame:
@@ -92,6 +124,35 @@ df = _load_events()
 now_local = datetime.now(TZ)
 today = now_local.date()
 
+# --- Profile ---
+_photo = Path(__file__).parent / PUPPY["photo_path"]
+_prof_left, _prof_right = st.columns([1, 3])
+with _prof_left:
+    st.markdown(_profile_image_html(_photo), unsafe_allow_html=True)
+with _prof_right:
+    _dob = PUPPY["date_of_birth"]
+    _age = _compute_age(_dob, today)
+    st.markdown(f"### {PUPPY['name']}")
+    st.markdown(
+        f"**Breed:** {PUPPY['breed']}  \n"
+        f"**Sex:** {PUPPY['sex'].capitalize()}  \n"
+        f"**DOB:** {_dob.strftime('%Y-%m-%d')} ({_age})"
+    )
+    _weights = df[df["event_type"] == "weight"].copy() if not df.empty else pd.DataFrame()
+    if not _weights.empty:
+        _weights["_lbs"] = pd.to_numeric(_weights["amount_grams"], errors="coerce") / LBS_TO_GRAMS
+        _weights = _weights.dropna(subset=["_lbs"]).sort_values("timestamp")
+    if _weights.empty:
+        st.markdown("**Current weight:** — (no weight logged yet)")
+    else:
+        _latest = _weights.iloc[-1]
+        st.markdown(
+            f"**Current weight:** {_latest['_lbs']:.2f} lbs "
+            f"(as of {_latest['timestamp'].strftime('%Y-%m-%d')})"
+        )
+
+st.divider()
+
 # --- Status strip ---
 st.subheader("Right now")
 STATUS_TYPES = ["pee", "poop", "meal"]
@@ -140,8 +201,6 @@ with st.form("log_event", clear_on_submit=True):
     notes = st.text_area("Notes (optional)", placeholder="e.g. soft stool, ate slowly")
 
     submitted = st.form_submit_button("Save event")
-
-LBS_TO_GRAMS = 453.592
 
 if submitted:
     timestamp = datetime.combine(event_date, event_time).isoformat(timespec="seconds")
