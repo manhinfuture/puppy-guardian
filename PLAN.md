@@ -132,6 +132,9 @@ Explicitly dropped from earlier plan: generic "events per day" bar chart (redund
 - Filter by date range and category
 - **Use it daily for at least 2 weeks before adding anything else.** Let real usage tell us what to build next.
 
+**Added mid-phase (2026-04-19):**
+- **Average daytime interval per type** in the status strip. Each pee/poop/meal tile shows a small caption underneath: `avg: Xh Ym · 14d`. Window is the last 14 days. Overnight gaps are excluded by only pairing consecutive same-type events at/after 06:00 on the same calendar day (any gap crossing midnight is dropped). Meal avg is included as a sanity check even though it mostly reflects the feeding schedule. Intended to answer "is Ichi overdue?" at a glance by comparing time-since-last against the average.
+
 **Phase 5 — Revisit auth (decide after Phase 4)**
 - After 2+ weeks of real daily use, decide whether to add Google OAuth login restricted to an email allow-list.
 - Decide based on actual evidence: has the URL leaked? Has the Sheet been spammed? Does sharing with family require finer permissions?
