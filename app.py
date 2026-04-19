@@ -37,7 +37,7 @@ def _static_bar_chart(series: pd.Series, x_label: str, x_type: str = "O") -> alt
         alt.Chart(data)
         .mark_bar()
         .encode(
-            x=alt.X(f"{x_label}:{x_type}", title=x_label, sort=None),
+            x=alt.X(f"{x_label}:{x_type}", title=x_label, sort=None, axis=alt.Axis(labelAngle=0)),
             y=alt.Y("count:Q", title="count"),
             tooltip=[x_label, "count"],
         )
@@ -163,27 +163,39 @@ else:
     st.subheader("💩 Poop")
     poop = recent_df[recent_df["event_type"] == "poop"]
 
-    st.caption("Time of day (last 14 days)")
+    st.caption("Time of day by date (last 14 days) — each dot is one poop")
     if poop.empty:
         st.info("No poop events in the last 14 days.")
     else:
-        hourly = (
-            poop["timestamp"].dt.hour.value_counts()
-            .reindex(range(24), fill_value=0)
-            .sort_index()
+        dots_df = pd.DataFrame({
+            "date": poop["timestamp"].dt.strftime("%-m/%-d"),
+            "hour_of_day": poop["timestamp"].dt.hour + poop["timestamp"].dt.minute / 60,
+            "time": poop["timestamp"].dt.strftime("%H:%M"),
+        })
+        dot_chart = (
+            alt.Chart(dots_df)
+            .mark_circle(size=100, opacity=0.7)
+            .encode(
+                x=alt.X("date:O", title="date", sort=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y(
+                    "hour_of_day:Q",
+                    title="hour of day",
+                    scale=alt.Scale(domain=[0, 24]),
+                    axis=alt.Axis(values=list(range(0, 25, 3))),
+                ),
+                tooltip=["date", "time"],
+            )
+            .properties(height=320)
+            .configure_view(strokeWidth=0)
         )
-        hourly.index.name = "hour"
-        st.altair_chart(
-            _static_bar_chart(hourly, "hour", x_type="O"),
-            use_container_width=True,
-        )
+        st.altair_chart(dot_chart, use_container_width=True)
 
     st.caption("Daily count (last 14 days)")
     if poop.empty:
         st.info("No poop events in the last 14 days.")
     else:
         daily = poop.groupby("date").size().reindex(window_dates, fill_value=0)
-        daily.index = [d.isoformat() for d in daily.index]
+        daily.index = [f"{d.month}/{d.day}" for d in daily.index]
         daily.index.name = "date"
         st.altair_chart(
             _static_bar_chart(daily, "date", x_type="O"),
@@ -198,7 +210,7 @@ else:
         st.info("No pee events in the last 14 days.")
     else:
         daily_pee = pee.groupby("date").size().reindex(window_dates, fill_value=0)
-        daily_pee.index = [d.isoformat() for d in daily_pee.index]
+        daily_pee.index = [f"{d.month}/{d.day}" for d in daily_pee.index]
         daily_pee.index.name = "date"
         st.altair_chart(
             _static_bar_chart(daily_pee, "date", x_type="O"),
