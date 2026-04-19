@@ -15,6 +15,7 @@ This file captures ideas and features that are **not** part of the current MVP b
 - **Per-puppy support** — if a second dog joins the household, need a `puppy_name` column and filter. Schema already anticipates this.
 - **Vet records attachment** — upload PDFs of vaccination records, vet visit notes. Likely lives as a Google Drive folder linked from the app rather than inside the Sheet.
 - **Weekly summary email** — automated digest: total events, any anomalies, sent to both users every Sunday.
+- **Daily meal grams vs. target** — bar chart of daily `amount_grams` sum with a target line, to answer "did she hit her ration today?" Promote when the vet gives a concrete grams/day target.
 
 ## Medium-term (requires real design work)
 

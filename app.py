@@ -159,6 +159,36 @@ else:
             delta_text = f"{tw - lw:+.0f}% vs last week" if lw is not None else "no last-week data"
             st.metric("Potty accuracy (7d)", f"{tw:.0f}%", delta_text)
 
+    # Potty accuracy trend (last 8 weeks, by calendar week)
+    st.caption("Potty accuracy by week (last 8 weeks)")
+    if potty.empty:
+        st.info("No potty events with a noted location yet.")
+    else:
+        trend = potty.copy()
+        trend["week_start"] = (trend["timestamp"] - pd.to_timedelta(trend["timestamp"].dt.weekday, unit="D")).dt.normalize()
+        weekly = (
+            trend.groupby("week_start")
+            .apply(lambda g: (g["location_correct"] == "yes").mean() * 100)
+            .rename("accuracy")
+            .reset_index()
+        )
+        cutoff = pd.Timestamp(today - timedelta(weeks=7), tz=TZ).normalize()
+        cutoff = cutoff - pd.to_timedelta(cutoff.weekday(), unit="D")
+        weekly = weekly[weekly["week_start"] >= cutoff]
+        weekly["week"] = weekly["week_start"].dt.strftime("%-m/%-d")
+        trend_chart = (
+            alt.Chart(weekly)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("week:O", title="week of", sort=None, axis=alt.Axis(labelAngle=0)),
+                y=alt.Y("accuracy:Q", title="accuracy %", scale=alt.Scale(domain=[0, 100])),
+                tooltip=["week", alt.Tooltip("accuracy:Q", format=".0f")],
+            )
+            .properties(height=260)
+            .configure_view(strokeWidth=0)
+        )
+        st.altair_chart(trend_chart, use_container_width=True)
+
     # Poop charts (stacked vertically for readability)
     st.subheader("💩 Poop")
     poop = recent_df[recent_df["event_type"] == "poop"]
