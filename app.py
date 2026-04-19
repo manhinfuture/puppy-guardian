@@ -92,10 +92,10 @@ with st.form("log_event", clear_on_submit=True):
     with col2:
         event_time = st.time_input("Time", value=now_local.time())
 
-    amount_grams = st.number_input(
-        "Amount in grams (for meals only — leave 0 otherwise)",
+    amount_input = st.number_input(
+        "Amount — meals: grams · weight: lbs (leave 0 otherwise)",
         min_value=0.0,
-        step=1.0,
+        step=0.1,
         value=0.0,
     )
 
@@ -109,9 +109,16 @@ with st.form("log_event", clear_on_submit=True):
 
     submitted = st.form_submit_button("Save event")
 
+LBS_TO_GRAMS = 453.592
+
 if submitted:
     timestamp = datetime.combine(event_date, event_time).isoformat(timespec="seconds")
-    grams_value = str(amount_grams) if event_type == "meal" and amount_grams > 0 else ""
+    if event_type == "meal" and amount_input > 0:
+        grams_value = str(amount_input)
+    elif event_type == "weight" and amount_input > 0:
+        grams_value = str(round(amount_input * LBS_TO_GRAMS, 2))
+    else:
+        grams_value = ""
     location_value = location_correct if location_correct != "not noted" else ""
     append_event(
         event_id=str(uuid.uuid4()),
@@ -246,6 +253,38 @@ else:
             _static_bar_chart(daily_pee, "date", x_type="O"),
             use_container_width=True,
         )
+
+# --- Weight ---
+st.header("⚖️ Weight")
+
+weights = df[df["event_type"] == "weight"].copy() if not df.empty else pd.DataFrame()
+if not weights.empty:
+    weights["weight_lbs"] = pd.to_numeric(weights["amount_grams"], errors="coerce") / LBS_TO_GRAMS
+    weights = weights.dropna(subset=["weight_lbs"]).sort_values("timestamp")
+
+if weights.empty:
+    st.info("No weight records yet. Log a weight event above to start tracking.")
+else:
+    latest = weights.iloc[-1]
+    st.caption(
+        f"Current: **{latest['weight_lbs']:.2f} lbs** (as of {latest['timestamp'].strftime('%-m/%-d')})"
+    )
+    weight_chart_df = pd.DataFrame({
+        "date": weights["timestamp"].dt.strftime("%-m/%-d"),
+        "weight_lbs": weights["weight_lbs"].round(2),
+    })
+    weight_chart = (
+        alt.Chart(weight_chart_df)
+        .mark_line(point=True)
+        .encode(
+            x=alt.X("date:O", title="date", sort=None, axis=alt.Axis(labelAngle=0)),
+            y=alt.Y("weight_lbs:Q", title="weight (lbs)"),
+            tooltip=["date", alt.Tooltip("weight_lbs:Q", format=".2f")],
+        )
+        .properties(height=300)
+        .configure_view(strokeWidth=0)
+    )
+    st.altair_chart(weight_chart, use_container_width=True)
 
 # --- Recent events ---
 st.header("Recent events")
