@@ -35,10 +35,10 @@ def _compute_age(dob: date, today: date) -> str:
     return f"{years}y {months}m"
 
 
-def _profile_image_html(path: Path, size_px: int = 140) -> str:
+def _profile_circle_html(path: Path, size_px: int) -> str:
     circle = (
         f"width:{size_px}px;height:{size_px}px;border-radius:50%;"
-        "object-fit:cover;border:2px solid #eee;"
+        "object-fit:cover;border:2px solid #eee;flex-shrink:0;"
     )
     if path.exists():
         mime = "image/jpeg" if path.suffix.lower() in (".jpg", ".jpeg") else "image/png"
@@ -126,31 +126,37 @@ today = now_local.date()
 
 # --- Profile ---
 _photo = Path(__file__).parent / PUPPY["photo_path"]
-_prof_left, _prof_right = st.columns([1, 3])
-with _prof_left:
-    st.markdown(_profile_image_html(_photo), unsafe_allow_html=True)
-with _prof_right:
-    _dob = PUPPY["date_of_birth"]
-    _age = _compute_age(_dob, today)
-    st.markdown(f"### {PUPPY['name']}")
-    st.markdown(
-        f"**Breed:** {PUPPY['breed']}  \n"
-        f"**Sex:** {PUPPY['sex'].capitalize()}  \n"
-        f"**DOB:** {_dob.strftime('%Y-%m-%d')} ({_age})"
+_dob = PUPPY["date_of_birth"]
+_age = _compute_age(_dob, today)
+_weights = df[df["event_type"] == "weight"].copy() if not df.empty else pd.DataFrame()
+if not _weights.empty:
+    _weights["_lbs"] = pd.to_numeric(_weights["amount_grams"], errors="coerce") / LBS_TO_GRAMS
+    _weights = _weights.dropna(subset=["_lbs"]).sort_values("timestamp")
+if _weights.empty:
+    _weight_line = "<strong>Current weight:</strong> — (no weight logged yet)"
+else:
+    _latest = _weights.iloc[-1]
+    _weight_line = (
+        f"<strong>Current weight:</strong> {_latest['_lbs']:.2f} lbs "
+        f"(as of {_latest['timestamp'].strftime('%Y-%m-%d')})"
     )
-    _weights = df[df["event_type"] == "weight"].copy() if not df.empty else pd.DataFrame()
-    if not _weights.empty:
-        _weights["_lbs"] = pd.to_numeric(_weights["amount_grams"], errors="coerce") / LBS_TO_GRAMS
-        _weights = _weights.dropna(subset=["_lbs"]).sort_values("timestamp")
-    if _weights.empty:
-        st.markdown("**Current weight:** — (no weight logged yet)")
-    else:
-        _latest = _weights.iloc[-1]
-        st.markdown(
-            f"**Current weight:** {_latest['_lbs']:.2f} lbs "
-            f"(as of {_latest['timestamp'].strftime('%Y-%m-%d')})"
-        )
 
+_circle_px = 150
+_profile_html = f"""
+<div style="display:flex; justify-content:center; align-items:center; gap:24px; margin:8px 0 20px 0;">
+  {_profile_circle_html(_photo, _circle_px)}
+  <div style="display:flex; flex-direction:column; justify-content:space-between; height:{_circle_px}px;">
+    <div style="font-size:24px; font-weight:700; line-height:1;">{PUPPY['name']}</div>
+    <div style="line-height:1.35;">
+      <div><strong>Breed:</strong> {PUPPY['breed']}</div>
+      <div><strong>Sex:</strong> {PUPPY['sex'].capitalize()}</div>
+      <div><strong>DOB:</strong> {_dob.strftime('%Y-%m-%d')} ({_age})</div>
+      <div>{_weight_line}</div>
+    </div>
+  </div>
+</div>
+"""
+st.markdown(_profile_html, unsafe_allow_html=True)
 st.divider()
 
 # --- Status strip ---
