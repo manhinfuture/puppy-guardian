@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 
 from config import EVENT_TYPES, PUPPY, TIMEZONE
-from sheets import append_event, read_all_events
+from sheets import append_event, delete_event, read_all_events, update_event
 
 TZ = ZoneInfo(TIMEZONE)
 ICONS = {"pee": "💦", "poop": "💩", "meal": "🍽", "medicine": "💊"}
@@ -195,33 +195,77 @@ for col, et in zip(cols, STATUS_TYPES):
             st.caption(f"avg: {_format_duration(avg)} · 14d" if avg else "avg: — · 14d")
 
 # --- Log form ---
-st.header("Log an event")
+editing_id = st.session_state.get("editing_event_id")
+editing_row = None
+if editing_id and not df.empty:
+    match = df[df["event_id"] == editing_id]
+    if not match.empty:
+        editing_row = match.iloc[0]
+    else:
+        editing_id = None
+        st.session_state.pop("editing_event_id", None)
 
-with st.form("log_event", clear_on_submit=True):
-    event_type = st.selectbox("Event type", EVENT_TYPES)
+if editing_row is not None:
+    st.header("Edit event")
+    st.caption(f"Editing event from {editing_row['timestamp'].strftime('%Y-%m-%d %H:%M')}")
+else:
+    st.header("Log an event")
+
+if editing_row is not None:
+    _default_type = editing_row["event_type"]
+    _default_date = editing_row["timestamp"].date()
+    _default_time = editing_row["timestamp"].time().replace(microsecond=0)
+    _raw_grams = pd.to_numeric(editing_row["amount_grams"], errors="coerce")
+    if pd.isna(_raw_grams) or _raw_grams == 0:
+        _default_amount = 0.0
+    elif _default_type == "weight":
+        _default_amount = round(_raw_grams / LBS_TO_GRAMS, 2)
+    else:
+        _default_amount = float(_raw_grams)
+    _default_loc = editing_row["location_correct"] if editing_row["location_correct"] in ("yes", "no") else "not noted"
+    _default_notes = editing_row["notes"] or ""
+else:
+    _default_type = EVENT_TYPES[0]
+    _default_date = now_local.date()
+    _default_time = now_local.time()
+    _default_amount = 0.0
+    _default_loc = "not noted"
+    _default_notes = ""
+
+with st.form("log_event", clear_on_submit=editing_row is None):
+    event_type = st.selectbox("Event type", EVENT_TYPES, index=EVENT_TYPES.index(_default_type))
 
     col1, col2 = st.columns(2)
     with col1:
-        event_date = st.date_input("Date", value=now_local.date())
+        event_date = st.date_input("Date", value=_default_date)
     with col2:
-        event_time = st.time_input("Time", value=now_local.time())
+        event_time = st.time_input("Time", value=_default_time)
 
     amount_input = st.number_input(
         "Amount — meals: grams · weight: lbs (leave 0 otherwise)",
         min_value=0.0,
         step=0.1,
-        value=0.0,
+        value=_default_amount,
     )
 
     location_correct = st.radio(
         "Correct location? (for pee/poop only)",
         options=["not noted", "yes", "no"],
+        index=["not noted", "yes", "no"].index(_default_loc),
         horizontal=True,
     )
 
-    notes = st.text_area("Notes (optional)", placeholder="e.g. soft stool, ate slowly")
+    notes = st.text_area("Notes (optional)", value=_default_notes, placeholder="e.g. soft stool, ate slowly")
 
-    submitted = st.form_submit_button("Save event")
+    btn_cols = st.columns([1, 1, 4])
+    with btn_cols[0]:
+        submitted = st.form_submit_button("Update event" if editing_row is not None else "Save event")
+    with btn_cols[1]:
+        cancel_edit = st.form_submit_button("Cancel") if editing_row is not None else False
+
+if editing_row is not None and cancel_edit:
+    st.session_state.pop("editing_event_id", None)
+    st.rerun()
 
 if submitted:
     timestamp = datetime.combine(event_date, event_time).isoformat(timespec="seconds")
@@ -232,15 +276,27 @@ if submitted:
     else:
         grams_value = ""
     location_value = location_correct if location_correct != "not noted" else ""
-    append_event(
-        event_id=str(uuid.uuid4()),
-        timestamp=timestamp,
-        event_type=event_type,
-        amount_grams=grams_value,
-        location_correct=location_value,
-        notes=notes,
-    )
-    st.toast(f"Logged {event_type} at {timestamp}")
+    if editing_row is not None:
+        update_event(
+            event_id=editing_id,
+            timestamp=timestamp,
+            event_type=event_type,
+            amount_grams=grams_value,
+            location_correct=location_value,
+            notes=notes,
+        )
+        st.session_state.pop("editing_event_id", None)
+        st.toast(f"Updated {event_type} at {timestamp}")
+    else:
+        append_event(
+            event_id=str(uuid.uuid4()),
+            timestamp=timestamp,
+            event_type=event_type,
+            amount_grams=grams_value,
+            location_correct=location_value,
+            notes=notes,
+        )
+        st.toast(f"Logged {event_type} at {timestamp}")
     st.rerun()
 
 # --- Charts ---
@@ -404,10 +460,6 @@ st.header("Recent events")
 if df.empty:
     st.info("No events yet. Log one above!")
 else:
-    display = df.copy()
-    display["date"] = display["timestamp"].dt.strftime("%Y-%m-%d")
-    display["time"] = display["timestamp"].dt.strftime("%H:%M")
-
     def _format_amount(row):
         raw = pd.to_numeric(row["amount_grams"], errors="coerce")
         if pd.isna(raw) or raw == 0:
@@ -418,13 +470,48 @@ else:
             return f"{raw:g} g"
         return str(raw)
 
-    display["amount"] = display.apply(_format_amount, axis=1)
-    recent = display.sort_values("timestamp", ascending=False).head(20)
-    st.dataframe(
-        recent[["date", "time", "event_type", "amount", "location_correct", "notes"]],
-        hide_index=True,
-        use_container_width=True,
-    )
+    recent = df.sort_values("timestamp", ascending=False).head(20)
+
+    header_cols = st.columns([1.2, 0.9, 1.0, 1.1, 1.0, 2.5, 1.4])
+    for col, label in zip(
+        header_cols,
+        ["Date", "Time", "Type", "Amount", "Location", "Notes", ""],
+    ):
+        col.markdown(f"**{label}**")
+
+    pending_delete = st.session_state.get("pending_delete_id")
+
+    for _, row in recent.iterrows():
+        row_cols = st.columns([1.2, 0.9, 1.0, 1.1, 1.0, 2.5, 1.4])
+        row_cols[0].write(row["timestamp"].strftime("%Y-%m-%d"))
+        row_cols[1].write(row["timestamp"].strftime("%H:%M"))
+        row_cols[2].write(row["event_type"])
+        row_cols[3].write(_format_amount(row))
+        row_cols[4].write(row["location_correct"] or "")
+        row_cols[5].write(row["notes"] or "")
+        with row_cols[6]:
+            eid = row["event_id"]
+            if pending_delete == eid:
+                c1, c2 = st.columns(2)
+                if c1.button("✓", key=f"confirm_{eid}", help="Confirm delete"):
+                    delete_event(eid)
+                    st.session_state.pop("pending_delete_id", None)
+                    if st.session_state.get("editing_event_id") == eid:
+                        st.session_state.pop("editing_event_id", None)
+                    st.toast("Event deleted")
+                    st.rerun()
+                if c2.button("✕", key=f"cancel_{eid}", help="Cancel"):
+                    st.session_state.pop("pending_delete_id", None)
+                    st.rerun()
+            else:
+                c1, c2 = st.columns(2)
+                if c1.button("✏️", key=f"edit_{eid}", help="Edit"):
+                    st.session_state["editing_event_id"] = eid
+                    st.session_state.pop("pending_delete_id", None)
+                    st.rerun()
+                if c2.button("🗑️", key=f"del_{eid}", help="Delete"):
+                    st.session_state["pending_delete_id"] = eid
+                    st.rerun()
 
 # --- CSV export ---
 st.header("Export")

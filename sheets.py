@@ -1,4 +1,5 @@
 import json
+from typing import Optional
 
 import gspread
 import pandas as pd
@@ -36,3 +37,36 @@ def read_all_events() -> pd.DataFrame:
     ws = _get_worksheet()
     records = ws.get_all_records()
     return pd.DataFrame(records)
+
+
+def _find_row_number(ws, event_id: str) -> Optional[int]:
+    cell = ws.find(event_id, in_column=1)
+    return cell.row if cell else None
+
+
+def update_event(
+    event_id: str,
+    timestamp: str,
+    event_type: str,
+    amount_grams: str,
+    location_correct: str,
+    notes: str,
+) -> bool:
+    ws = _get_worksheet()
+    row = _find_row_number(ws, event_id)
+    if row is None:
+        return False
+    ws.update(
+        f"A{row}:F{row}",
+        [[event_id, timestamp, event_type, amount_grams, location_correct, notes]],
+    )
+    return True
+
+
+def delete_event(event_id: str) -> bool:
+    ws = _get_worksheet()
+    row = _find_row_number(ws, event_id)
+    if row is None:
+        return False
+    ws.delete_rows(row)
+    return True
