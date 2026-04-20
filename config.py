@@ -11,5 +11,5 @@ PUPPY = {
     "breed": "Shiba Inu",
     "sex": "female",
     "date_of_birth": date(2026, 2, 6),
-    "photo_path": "assets/ichi.jpg",
+    "photo_path": "assets/ichi.jpeg",
 }
