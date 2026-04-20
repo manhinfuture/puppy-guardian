@@ -21,6 +21,10 @@ st.title("🐶 Puppy Guardian")
 
 
 def _compute_age(dob: date, today: date) -> str:
+    days = (today - dob).days
+    if days < 365:
+        weeks = days // 7
+        return f"{weeks} week{'s' if weeks != 1 else ''}"
     years = today.year - dob.year
     months = today.month - dob.month
     if today.day < dob.day:
@@ -28,8 +32,6 @@ def _compute_age(dob: date, today: date) -> str:
     if months < 0:
         years -= 1
         months += 12
-    if years == 0:
-        return f"{months} month{'s' if months != 1 else ''}"
     if months == 0:
         return f"{years} year{'s' if years != 1 else ''}"
     return f"{years}y {months}m"
