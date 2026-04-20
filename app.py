@@ -21,20 +21,33 @@ st.title("🐶 Puppy Guardian")
 
 
 def _compute_age(dob: date, today: date) -> str:
-    days = (today - dob).days
-    if days < 365:
-        weeks = days // 7
-        return f"{weeks} week{'s' if weeks != 1 else ''}"
     years = today.year - dob.year
     months = today.month - dob.month
-    if today.day < dob.day:
+    day_offset = today.day - dob.day
+    if day_offset < 0:
         months -= 1
+        # days remaining after the last completed month boundary
+        prev_month_date = date(today.year, today.month, 1) - timedelta(days=1)
+        day_offset += prev_month_date.day
     if months < 0:
         years -= 1
         months += 12
-    if months == 0:
-        return f"{years} year{'s' if years != 1 else ''}"
-    return f"{years}y {months}m"
+
+    if years >= 1:
+        if months == 0:
+            return f"{years} year{'s' if years != 1 else ''}"
+        return f"{years}y {months}m"
+
+    weeks = day_offset // 7
+    parts = []
+    if months:
+        parts.append(f"{months} month{'s' if months != 1 else ''}")
+    if weeks:
+        parts.append(f"{weeks} week{'s' if weeks != 1 else ''}")
+    if not parts:
+        days = (today - dob).days
+        return f"{days} day{'s' if days != 1 else ''}"
+    return " ".join(parts)
 
 
 def _profile_circle_html(path: Path, size_px: int) -> str:
