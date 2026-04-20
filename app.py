@@ -478,8 +478,13 @@ else:
         ["Date", "Time", "Type", "Amount", "Location", "Notes", ""],
     ):
         col.markdown(f"**{label}**")
+    st.markdown(
+        '<hr style="margin:4px 0;border:none;border-top:1px solid #bbb;" />',
+        unsafe_allow_html=True,
+    )
 
     pending_delete = st.session_state.get("pending_delete_id")
+    _row_divider = '<hr style="margin:4px 0;border:none;border-top:1px solid #eee;" />'
 
     for _, row in recent.iterrows():
         row_cols = st.columns([1.2, 0.9, 1.0, 1.1, 1.0, 2.5, 1.4])
@@ -512,6 +517,7 @@ else:
                 if c2.button("🗑️", key=f"del_{eid}", help="Delete"):
                     st.session_state["pending_delete_id"] = eid
                     st.rerun()
+        st.markdown(_row_divider, unsafe_allow_html=True)
 
 # --- CSV export ---
 st.header("Export")
