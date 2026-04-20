@@ -16,6 +16,7 @@ This file captures ideas and features that are **not** part of the current MVP b
 - **Vet records attachment** — upload PDFs of vaccination records, vet visit notes. Likely lives as a Google Drive folder linked from the app rather than inside the Sheet.
 - **Weekly summary email** — automated digest: total events, any anomalies, sent to both users every Sunday.
 - **Daily meal grams vs. target** — bar chart of daily `amount_grams` sum with a target line, to answer "did she hit her ration today?" Promote when the vet gives a concrete grams/day target.
+- **Google OAuth login** — restrict the app to an email allow-list using `st.login()`. Currently unauthenticated (URL is obscure, data is non-sensitive). Revisit if the URL leaks, the Sheet gets spammed, or sharing with extended family requires finer permissions.
 - **Configurable default meal grams** — when selecting `meal` in the log form, prefill the amount field with a user-set default (rather than 0). Default must be editable from the UI and persist across sessions. Requires a new `Settings` tab in the Google Sheet (key/value), moving the event-type selectbox outside the form so it triggers a rerun on change, and a small settings expander for editing the default. Deferred because the storage + reactive-form plumbing is disproportionate for the current pain; revisit if manual meal-gram entry remains a daily friction point after the Phase 4 soak.
 
 ## Medium-term (requires real design work)

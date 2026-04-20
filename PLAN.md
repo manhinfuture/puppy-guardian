@@ -80,7 +80,7 @@ Small project, flat structure. If the app grows, we'll split further — but not
 
 ## Build phases
 
-**Status as of 2026-04-19:** Phases 1, 2, and 3 are complete. Next session should start on Phase 4.
+**Status as of 2026-04-19:** Phases 1, 2, and 3 are complete; Phase 4 code items shipped. Currently in the Phase 4 soak (daily use for 2+ weeks before adding anything else).
 
 - Repo is live on GitHub (public): `manhinfuture/puppy-guardian` — no secrets in code, service-account key and `secrets.toml` are gitignored.
 - App is deployed on Streamlit Community Cloud and auto-deploys from `main` on push.
@@ -88,7 +88,7 @@ Small project, flat structure. If the app grows, we'll split further — but not
 - Wife has tested logging from her phone — works.
 - Timezone fix shipped (`TIMEZONE = "America/Los_Angeles"` in `config.py`, used in `app.py` date/time defaults).
 - Historical data was rewritten once via a one-time `replace_history.py` script on 2026-04-19 (backup saved locally to `sheet_backup_20260419_011113.csv`). The script is spent — the Sheet is now the source of truth.
-- Auth deliberately deferred to Phase 5 (see below).
+- Auth deliberately deferred — tracked in BACKLOG.md.
 
 **Phase 1 — Local logger (run on Mac only)** ✅ done
 - Python + Streamlit installed
@@ -103,7 +103,7 @@ Small project, flat structure. If the app grows, we'll split further — but not
 - Connect to Streamlit Community Cloud, deploy to `puppy-guardian.streamlit.app`
 - Share the URL with wife, confirm she can log events from her phone
 - Verification: wife logs an event from her phone while user's Mac is off; event appears in Sheet and in the app
-- **Auth deliberately deferred to Phase 5** — URL is obscure, data is non-sensitive, worst case is a fake "poop" row that's deleted from the Sheet. Rule of Three: add auth only when it's actually needed.
+- **Auth deliberately deferred** — URL is obscure, data is non-sensitive, worst case is a fake "poop" row that's deleted from the Sheet. Rule of Three: add auth only when it's actually needed. Tracked in BACKLOG.md.
 
 **Phase 3 — Status strip, targeted charts, CSV export** ✅ done
 
@@ -136,12 +136,6 @@ Explicitly dropped from earlier plan: generic "events per day" bar chart (redund
 - **Profile card at top of page.** Replaces the `Tracking Ichi` caption. Circle photo on the left, name / breed / sex / DOB (with computed age in years+months) / current weight on the right. Profile metadata lives in `config.py` under `PUPPY` (Rule of Three — promote to a Sheet tab only if editing-from-phone becomes a real need). Photo committed at `assets/ichi.jpg` because Streamlit Cloud's filesystem is ephemeral — an in-app uploader would lose the file on redeploy. Current weight reads the latest `weight` event from the Sheet so it stays live.
 - **Average daytime interval per type** in the status strip. Each pee/poop/meal tile shows a small caption underneath: `avg: Xh Ym · 14d`. Window is the last 14 days. Overnight gaps are excluded by only pairing consecutive same-type events at/after 06:00 on the same calendar day (any gap crossing midnight is dropped). Meal avg is included as a sanity check even though it mostly reflects the feeding schedule. Intended to answer "is Ichi overdue?" at a glance by comparing time-since-last against the average.
 
-**Phase 5 — Revisit auth (decide after Phase 4)**
-- After 2+ weeks of real daily use, decide whether to add Google OAuth login restricted to an email allow-list.
-- Decide based on actual evidence: has the URL leaked? Has the Sheet been spammed? Does sharing with family require finer permissions?
-- If no → stay unauthenticated, done.
-- If yes → wire up `st.login()` with Google, allow-list emails in `config.py` or secrets.
-
 ## What "done" looks like
 
 - Both user and wife can log events from their phones
@@ -156,7 +150,6 @@ Explicitly dropped from earlier plan: generic "events per day" bar chart (redund
 - **Phase 2:** Wife opens URL on phone from outside the home WiFi → can log an event → it appears in the Sheet
 - **Phase 3:** Log 10 events across 3 days → charts render correctly → CSV downloads and opens
 - **Phase 4:** Daily usage for 14 days with both users → collect feedback
-- **Phase 5:** Review whether auth is needed; if yes, wife can still log in with one tap on her phone after setup
 
 ## Open questions
 
