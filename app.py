@@ -487,7 +487,7 @@ else:
     _row_divider = '<hr style="margin:4px 0;border:none;border-top:1px solid #eee;" />'
 
     for _, row in recent.iterrows():
-        row_cols = st.columns([1.2, 0.9, 1.0, 1.1, 1.0, 2.5, 1.4])
+        row_cols = st.columns([1.2, 0.9, 1.0, 1.1, 1.0, 2.5, 1.4], vertical_alignment="center")
         row_cols[0].write(row["timestamp"].strftime("%Y-%m-%d"))
         row_cols[1].write(row["timestamp"].strftime("%H:%M"))
         row_cols[2].write(row["event_type"])
