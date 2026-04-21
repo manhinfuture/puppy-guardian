@@ -214,7 +214,8 @@ else:
 if editing_row is not None:
     _default_type = editing_row["event_type"]
     _default_date = editing_row["timestamp"].date()
-    _default_time = editing_row["timestamp"].time().replace(microsecond=0)
+    _default_hour = editing_row["timestamp"].hour
+    _default_minute = editing_row["timestamp"].minute
     _raw_grams = pd.to_numeric(editing_row["amount_grams"], errors="coerce")
     if pd.isna(_raw_grams) or _raw_grams == 0:
         _default_amount = 0.0
@@ -227,7 +228,8 @@ if editing_row is not None:
 else:
     _default_type = EVENT_TYPES[0]
     _default_date = now_local.date()
-    _default_time = now_local.time().replace(second=0, microsecond=0)
+    _default_hour = now_local.hour
+    _default_minute = now_local.minute
     _default_amount = 0.0
     _default_loc = "not noted"
     _default_notes = ""
@@ -241,7 +243,8 @@ if st.session_state.get("_form_sentinel") != _form_sentinel:
     st.session_state["_form_sentinel"] = _form_sentinel
     st.session_state["form_type"] = _default_type
     st.session_state["form_date"] = _default_date
-    st.session_state["form_time"] = _default_time
+    st.session_state["form_hour"] = _default_hour
+    st.session_state["form_minute"] = _default_minute
     st.session_state["form_amount"] = _default_amount
     st.session_state["form_loc"] = _default_loc
     st.session_state["form_notes"] = _default_notes
@@ -249,11 +252,13 @@ if st.session_state.get("_form_sentinel") != _form_sentinel:
 with st.form("log_event"):
     event_type = st.selectbox("Event type", EVENT_TYPES, key="form_type")
 
-    col1, col2 = st.columns(2)
-    with col1:
+    col_date, col_hour, col_min = st.columns([2, 1, 1])
+    with col_date:
         event_date = st.date_input("Date", key="form_date")
-    with col2:
-        event_time = st.time_input("Time", key="form_time", step=60)
+    with col_hour:
+        event_hour = st.number_input("Hour (0–23)", min_value=0, max_value=23, step=1, key="form_hour")
+    with col_min:
+        event_minute = st.number_input("Minute (0–59)", min_value=0, max_value=59, step=1, key="form_minute")
 
     amount_input = st.number_input(
         "Amount — meals: grams · weight: lbs (leave 0 otherwise)",
@@ -279,7 +284,7 @@ with st.form("log_event"):
 
 
 def _reset_form_state() -> None:
-    for k in ("_form_sentinel", "form_type", "form_date", "form_time",
+    for k in ("_form_sentinel", "form_type", "form_date", "form_hour", "form_minute",
              "form_amount", "form_loc", "form_notes"):
         st.session_state.pop(k, None)
 
@@ -290,7 +295,8 @@ if editing_row is not None and cancel_edit:
     st.rerun()
 
 if submitted:
-    timestamp = datetime.combine(event_date, event_time).isoformat(timespec="seconds")
+    event_time_obj = datetime.min.time().replace(hour=int(event_hour), minute=int(event_minute))
+    timestamp = datetime.combine(event_date, event_time_obj).isoformat(timespec="seconds")
     if event_type == "meal" and amount_input > 0:
         grams_value = str(amount_input)
     elif event_type == "weight" and amount_input > 0:
