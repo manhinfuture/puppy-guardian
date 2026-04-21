@@ -227,35 +227,49 @@ if editing_row is not None:
 else:
     _default_type = EVENT_TYPES[0]
     _default_date = now_local.date()
-    _default_time = now_local.time()
+    _default_time = now_local.time().replace(second=0, microsecond=0)
     _default_amount = 0.0
     _default_loc = "not noted"
     _default_notes = ""
 
-with st.form("log_event", clear_on_submit=editing_row is None):
-    event_type = st.selectbox("Event type", EVENT_TYPES, index=EVENT_TYPES.index(_default_type))
+# Seed widget state in session_state only when the form's purpose changes
+# (fresh load, entering edit mode for a specific event, or after a submit).
+# This preserves the user's input across reruns but doesn't overwrite it on
+# every render — which was the cause of the "saved time == current time" bug.
+_form_sentinel = f"editing:{editing_id}" if editing_id else "new"
+if st.session_state.get("_form_sentinel") != _form_sentinel:
+    st.session_state["_form_sentinel"] = _form_sentinel
+    st.session_state["form_type"] = _default_type
+    st.session_state["form_date"] = _default_date
+    st.session_state["form_time"] = _default_time
+    st.session_state["form_amount"] = _default_amount
+    st.session_state["form_loc"] = _default_loc
+    st.session_state["form_notes"] = _default_notes
+
+with st.form("log_event"):
+    event_type = st.selectbox("Event type", EVENT_TYPES, key="form_type")
 
     col1, col2 = st.columns(2)
     with col1:
-        event_date = st.date_input("Date", value=_default_date)
+        event_date = st.date_input("Date", key="form_date")
     with col2:
-        event_time = st.time_input("Time", value=_default_time)
+        event_time = st.time_input("Time", key="form_time")
 
     amount_input = st.number_input(
         "Amount — meals: grams · weight: lbs (leave 0 otherwise)",
         min_value=0.0,
         step=0.1,
-        value=_default_amount,
+        key="form_amount",
     )
 
     location_correct = st.radio(
         "Correct location? (for pee/poop only)",
         options=["not noted", "yes", "no"],
-        index=["not noted", "yes", "no"].index(_default_loc),
+        key="form_loc",
         horizontal=True,
     )
 
-    notes = st.text_area("Notes (optional)", value=_default_notes, placeholder="e.g. soft stool, ate slowly")
+    notes = st.text_area("Notes (optional)", key="form_notes", placeholder="e.g. soft stool, ate slowly")
 
     btn_cols = st.columns([1, 1, 4])
     with btn_cols[0]:
@@ -263,8 +277,16 @@ with st.form("log_event", clear_on_submit=editing_row is None):
     with btn_cols[1]:
         cancel_edit = st.form_submit_button("Cancel") if editing_row is not None else False
 
+
+def _reset_form_state() -> None:
+    for k in ("_form_sentinel", "form_type", "form_date", "form_time",
+             "form_amount", "form_loc", "form_notes"):
+        st.session_state.pop(k, None)
+
+
 if editing_row is not None and cancel_edit:
     st.session_state.pop("editing_event_id", None)
+    _reset_form_state()
     st.rerun()
 
 if submitted:
@@ -297,6 +319,7 @@ if submitted:
             notes=notes,
         )
         st.toast(f"Logged {event_type} at {timestamp}")
+    _reset_form_state()
     st.rerun()
 
 # --- Charts ---
