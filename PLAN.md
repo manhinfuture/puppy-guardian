@@ -80,7 +80,7 @@ Small project, flat structure. If the app grows, we'll split further — but not
 
 ## Build phases
 
-**Status as of 2026-04-19:** Phases 1, 2, and 3 are complete; Phase 4 code items shipped. Currently in the Phase 4 soak (daily use for 2+ weeks before adding anything else).
+**Status as of 2026-04-20:** Phases 1–4 complete. Phase 4 soak ran long enough to surface real follow-on needs (see Phases 5–7 below). Phases 5 and 6 are locked and ready to build; Phase 7 (Medical) is intentionally deferred pending a fresh design discussion.
 
 - Repo is live on GitHub (public): `manhinfuture/puppy-guardian` — no secrets in code, service-account key and `secrets.toml` are gitignored.
 - App is deployed on Streamlit Community Cloud and auto-deploys from `main` on push.
@@ -135,6 +135,87 @@ Explicitly dropped from earlier plan: generic "events per day" bar chart (redund
 **Added mid-phase (2026-04-19):**
 - **Profile card at top of page.** Replaces the `Tracking Ichi` caption. Circle photo on the left, name / breed / sex / DOB (with computed age in years+months) / current weight on the right. Profile metadata lives in `config.py` under `PUPPY` (Rule of Three — promote to a Sheet tab only if editing-from-phone becomes a real need). Photo committed at `assets/ichi.jpg` because Streamlit Cloud's filesystem is ephemeral — an in-app uploader would lose the file on redeploy. Current weight reads the latest `weight` event from the Sheet so it stays live.
 - **Average daytime interval per type** in the status strip. Each pee/poop/meal tile shows a small caption underneath: `avg: Xh Ym · 14d`. Window is the last 14 days. Overnight gaps are excluded by only pairing consecutive same-type events at/after 06:00 on the same calendar day (any gap crossing midnight is dropped). Meal avg is included as a sanity check even though it mostly reflects the feeding schedule. Intended to answer "is Ichi overdue?" at a glance by comparing time-since-last against the average.
+
+---
+
+### Shared structural change for Phases 5 and 6
+
+Both new phases live as separate pages under Streamlit's multipage layout:
+
+```
+app.py                  ← stays as the home page (status strip, log, charts)
+pages/
+  1_Observations.py     ← Phase 5
+  2_Training.py         ← Phase 6
+```
+
+Streamlit auto-discovers files in `pages/` and renders a sidebar nav. The home page is unchanged — no new buttons or event types added to the existing log form.
+
+**Phase 5 — Observations** 🚧 in progress (built, pending verification)
+
+Free-text "note to self" log for things to revisit later (e.g., "Ichi is jumpy and biting everything — look into this"). Subjective by design — kept structurally separate from factual event logging at both the data layer and the UI layer.
+
+- **New Sheet tab `Observations`** (sibling to `Events`). Columns: `observation_id` (UUID), `date` (no time), `notes`, `resolved` (`yes` / blank).
+- **No changes to `Events`.** No new event_type. No new columns.
+- **New page `pages/1_Observations.py`:**
+  - Add form at the top (date defaulting to today, notes text area).
+  - **Open** section (default expanded): each row shows date, notes, a resolved checkbox, Edit, Delete.
+  - **Resolved** section (collapsed by default): same row shape.
+  - Edit opens an inline form with Save / Cancel. Delete requires a confirmation step.
+- **`sheets.py`** gains: `read_observations()`, `add_observation()`, `update_observation()`, `delete_observation()`.
+- **`config.py`** gains: `OBSERVATIONS_TAB` and column constants. No changes to event-type lists.
+- **One-time Sheet migration:** create the `Observations` tab manually (or via auto-create on first read).
+- Verification: add → row in Sheet, appears under Open. Tick resolved → moves to Resolved. Edit → persists. Delete → row removed. Home page log form unchanged.
+
+**Phase 6 — Training** ⏳ planned
+
+A structured curriculum checklist with per-item state (status, session count, last practiced, notes). Answers "what should I train next?" without trying to be smart about it.
+
+- **New Sheet tab `Trainings`.** Columns: `training_id` (UUID), `name`, `category`, `status` (`not_started` / `practicing` / `reliable`), `session_count` (int), `last_practiced` (ISO date, blank initially), `notes` (single editable field, not a log).
+- **`Events` tab unchanged.** No `training` event_type — `session_count` + `last_practiced` carry enough state for MVP. Promote to per-session events only if the history of individual sessions becomes something we wish we had.
+- **Starter curriculum** (10 items, 3 categories — seeded once via `seed_trainings.py`, then the script is spent):
+
+  | # | Name | Category |
+  |---|---|---|
+  | 1 | Name recognition (look at me) | Foundation |
+  | 2 | Sit | Obedience |
+  | 3 | Down | Obedience |
+  | 4 | Stay | Obedience |
+  | 5 | Come (recall) | Obedience |
+  | 6 | Leave it | Manners |
+  | 7 | Drop it | Manners |
+  | 8 | Loose-leash walking | Manners |
+  | 9 | Crate / place / settle | Manners |
+  | 10 | Bite inhibition (no nipping) | Manners |
+
+- **New page `pages/2_Training.py`:**
+  - Items grouped by category, sorted within each category by status (`practicing` → `not_started` → `reliable`). No recommendation logic beyond this sort.
+  - **Stale flag:** if an item is `practicing` and `last_practiced` was 5+ days ago, show a small "haven't practiced in N days" hint.
+  - Each row: name, status dropdown, session count, last-practiced date, notes preview, **"I trained this today"** button (increments count + sets last_practiced to today), Edit, Delete (with confirmation).
+  - Add training item expander at the bottom: name + category (free text or pick from existing) + optional notes. New item starts at `not_started`.
+- **`sheets.py`** gains: `read_trainings()`, `add_training()`, `update_training()`, `delete_training()`.
+- **`config.py`** gains: `STARTER_CURRICULUM` (list of dicts) and `TRAINING_STATUSES`.
+- **`seed_trainings.py`** is a one-shot script analogous to `replace_history.py` — creates the `Trainings` tab if missing, writes headers, inserts the starter rows.
+- Verification: seed runs once → 10 rows in Sheet. Page renders grouped by category. Status change reorders. "I trained this today" increments + dates. Stale hint appears at 5+ days idle. Add / edit / delete works. Home page unchanged.
+
+**Phase 7 — Medical** ⛔ DEFERRED — DO NOT START WITHOUT RE-DISCUSSION
+
+> **STOP.** This phase is intentionally deferred. The user explicitly decided that the medical record feature is too complex to lock in alongside Observations and Training, and needs more thinking time.
+>
+> **Required before any Phase 7 work begins:**
+> 1. The AI agent **must re-open a deep design discussion with the user** — covering layout, schema, storage, what counts as a "medical record" vs. an observation, file attachments, vet-visit fields, body-condition tracking, etc.
+> 2. The AI agent **must obtain explicit double confirmation** from the user before writing any code, creating any new Sheet tabs, modifying any existing files for Phase 7, or even updating this plan to lock in a Phase 7 design.
+> 3. **No assumptions, no shortcuts.** Even if the user says "go ahead with medical," surface what you intend to do, get agreement on each major decision, then ask once more for confirmation before execution.
+
+Starting points from the initial discussion (context only — **not** locked decisions, must be re-opened):
+
+- Tentative direction: text-only medical records at MVP, no in-app PDF/photo upload; user maintains a personal Drive folder on the side; revisit only after 3+ vet visits prove the friction.
+- Possible architecture: keep `medicine` and `weight` on `Events` (don't break the existing weight chart and profile card); introduce a new `VetVisits` tab for consultations (different shape than events); have a Medical page that aggregates from both tabs into one chronological timeline.
+- Possible vet-visit fields: date, vet name, reason, summary, follow-up.
+- Open: where do "body condition" notes live (e.g., ear redness, limping)? Options were (a) existing Observations tab, (b) Observations tab with a new `category` column, (c) a separate `HealthNotes` tab. No decision.
+- Possible Medical page contents: header summary (latest visit, current weight, recent medicines), combined timeline, filter by type, scoped CSV export.
+
+**Again: none of the above is locked. Re-discuss everything when this phase is unblocked.**
 
 ## What "done" looks like
 

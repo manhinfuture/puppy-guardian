@@ -6,6 +6,9 @@ EVENT_TYPES = ["pee", "poop", "meal", "medicine", "weight"]
 HEADER = ["event_id", "timestamp", "event_type", "amount_grams", "location_correct", "notes"]
 TIMEZONE = "America/Los_Angeles"
 
+OBSERVATIONS_TAB = "Observations"
+OBSERVATIONS_HEADER = ["observation_id", "date", "notes", "resolved"]
+
 PUPPY = {
     "name": "Ichi",
     "breed": "Shiba Inu",
