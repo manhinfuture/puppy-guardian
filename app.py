@@ -253,7 +253,7 @@ with st.form("log_event"):
     with col1:
         event_date = st.date_input("Date", key="form_date")
     with col2:
-        event_time = st.time_input("Time", key="form_time")
+        event_time = st.time_input("Time", key="form_time", step=60)
 
     amount_input = st.number_input(
         "Amount — meals: grams · weight: lbs (leave 0 otherwise)",
