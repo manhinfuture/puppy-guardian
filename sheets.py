@@ -11,6 +11,8 @@ from config import (
     OBSERVATIONS_HEADER,
     OBSERVATIONS_TAB,
     SHEET_ID,
+    TRAININGS_HEADER,
+    TRAININGS_TAB,
 )
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -121,6 +123,69 @@ def update_observation(observation_id: str, date_str: str, notes: str, resolved:
 def delete_observation(observation_id: str) -> bool:
     ws = _get_observations_ws()
     row = _find_row_number(ws, observation_id)
+    if row is None:
+        return False
+    ws.delete_rows(row)
+    return True
+
+
+# --- Trainings ---
+
+@st.cache_resource
+def _get_trainings_ws():
+    sh = _get_spreadsheet()
+    try:
+        ws = sh.worksheet(TRAININGS_TAB)
+    except gspread.WorksheetNotFound:
+        ws = sh.add_worksheet(title=TRAININGS_TAB, rows=100, cols=len(TRAININGS_HEADER))
+        ws.append_row(TRAININGS_HEADER)
+    return ws
+
+
+def read_trainings() -> pd.DataFrame:
+    ws = _get_trainings_ws()
+    records = ws.get_all_records()
+    return pd.DataFrame(records)
+
+
+def add_training(
+    training_id: str,
+    name: str,
+    category: str,
+    status: str,
+    session_count: int,
+    last_practiced: str,
+    notes: str,
+) -> None:
+    ws = _get_trainings_ws()
+    ws.append_row(
+        [training_id, name, category, status, session_count, last_practiced, notes]
+    )
+
+
+def update_training(
+    training_id: str,
+    name: str,
+    category: str,
+    status: str,
+    session_count: int,
+    last_practiced: str,
+    notes: str,
+) -> bool:
+    ws = _get_trainings_ws()
+    row = _find_row_number(ws, training_id)
+    if row is None:
+        return False
+    ws.update(
+        f"A{row}:G{row}",
+        [[training_id, name, category, status, session_count, last_practiced, notes]],
+    )
+    return True
+
+
+def delete_training(training_id: str) -> bool:
+    ws = _get_trainings_ws()
+    row = _find_row_number(ws, training_id)
     if row is None:
         return False
     ws.delete_rows(row)
