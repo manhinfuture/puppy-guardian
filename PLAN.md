@@ -151,7 +151,7 @@ pages/
 
 Streamlit auto-discovers files in `pages/` and renders a sidebar nav. The home page is unchanged — no new buttons or event types added to the existing log form.
 
-**Phase 5 — Observations** 🚧 in progress (built, pending verification)
+**Phase 5 — Observations** ✅ done
 
 Free-text "note to self" log for things to revisit later (e.g., "Ichi is jumpy and biting everything — look into this"). Subjective by design — kept structurally separate from factual event logging at both the data layer and the UI layer.
 
